@@ -79,9 +79,13 @@ export function useOutreach() {
   const addContact = useCallback(
     async (contact: OutreachInsert) => {
       try {
+        // Get the current user ID
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("Not authenticated");
+
         const { data, error } = await supabase
           .from("outreach")
-          .insert(contact)
+          .insert({ ...contact, user_id: user.id })
           .select()
           .single<Outreach>();
 
