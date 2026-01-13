@@ -3,6 +3,7 @@
 import { useState } from "react";
 import { Button } from "@/components/ui/button";
 import { ExternalLink, Copy, Check, SkipForward } from "lucide-react";
+import { isValidHttpUrl } from "@/lib/url-validation";
 
 type Props = {
   linkedinUrl: string | null;
@@ -24,7 +25,7 @@ export function ActionButtons({
   const [isSkipping, setIsSkipping] = useState(false);
 
   const handleOpenLinkedIn = () => {
-    if (linkedinUrl) {
+    if (linkedinUrl && isValidHttpUrl(linkedinUrl)) {
       window.open(linkedinUrl, "_blank", "noopener,noreferrer");
     }
   };

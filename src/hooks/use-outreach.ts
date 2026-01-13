@@ -1,6 +1,6 @@
 "use client";
 
-import { useCallback, useEffect, useState, useRef } from "react";
+import { useCallback, useEffect, useState, useRef, useMemo } from "react";
 import { createClient } from "@/lib/supabase/client";
 import type { Outreach, OutreachInsert, OutreachUpdate } from "@/types/database";
 
@@ -10,7 +10,8 @@ export function useOutreach() {
   const [isLoading, setIsLoading] = useState(true);
   const [error, setError] = useState<string | null>(null);
 
-  const supabase = createClient();
+  // Memoize Supabase client to prevent recreation on every render
+  const supabase = useMemo(() => createClient(), []);
 
   // Use refs for values needed in callbacks to avoid stale closures
   const contactsRef = useRef(contacts);
@@ -57,14 +58,15 @@ export function useOutreach() {
       const { data, error } = await supabase
         .from("outreach")
         .select("*")
-        .order("created_at", { ascending: true });
+        .order("created_at", { ascending: true })
+        .returns<Outreach[]>();
 
       if (error) throw error;
-      const typedData = (data ?? []) as Outreach[];
-      setContacts(typedData);
+      const fetchedContacts = data ?? [];
+      setContacts(fetchedContacts);
 
       // Find first pending contact
-      const firstPendingIndex = typedData.findIndex((c) => c.status === "pending");
+      const firstPendingIndex = fetchedContacts.findIndex((c) => c.status === "pending");
       setCurrentIndex(firstPendingIndex >= 0 ? firstPendingIndex : 0);
     } catch (err) {
       setError(err instanceof Error ? err.message : "Failed to fetch contacts");
@@ -81,12 +83,12 @@ export function useOutreach() {
           .from("outreach")
           .insert(contact)
           .select()
-          .single();
+          .single<Outreach>();
 
         if (error) throw error;
-        const typedData = data as Outreach;
-        setContacts((prev) => [...prev, typedData]);
-        return { data: typedData, error: null };
+        if (!data) throw new Error("No data returned from insert");
+        setContacts((prev) => [...prev, data]);
+        return { data, error: null };
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed to add contact";
         return { data: null, error: message };
@@ -104,12 +106,12 @@ export function useOutreach() {
           .update(updates)
           .eq("id", id)
           .select()
-          .single();
+          .single<Outreach>();
 
         if (error) throw error;
-        const typedData = data as Outreach;
-        setContacts((prev) => prev.map((c) => (c.id === id ? typedData : c)));
-        return { data: typedData, error: null };
+        if (!data) throw new Error("No data returned from update");
+        setContacts((prev) => prev.map((c) => (c.id === id ? data : c)));
+        return { data, error: null };
       } catch (err) {
         const message = err instanceof Error ? err.message : "Failed to update contact";
         return { data: null, error: message };
@@ -185,11 +187,11 @@ export function useOutreach() {
     return { sentToday, sentThisWeek, totalSent };
   }, [contacts]);
 
-  // Initial fetch
+  // Initial fetch on mount only
+  // Intentional: fetch once on mount. fetchContacts is stable via memoized supabase.
   useEffect(() => {
     fetchContacts();
-    // eslint-disable-next-line react-hooks/exhaustive-deps
-  }, []);
+  }, [fetchContacts]);
 
   return {
     contacts,

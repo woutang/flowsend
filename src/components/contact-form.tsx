@@ -21,6 +21,19 @@ type Props = {
 
 const SOURCES: Source[] = ["cold", "event", "inbound", "referral"];
 
+function isValidLinkedInUrl(url: string): boolean {
+  if (!url) return true; // Optional field
+  try {
+    const parsed = new URL(url);
+    return (
+      (parsed.protocol === "https:" || parsed.protocol === "http:") &&
+      parsed.hostname.endsWith("linkedin.com")
+    );
+  } catch {
+    return false;
+  }
+}
+
 export function ContactForm({ onAdd }: Props) {
   const [open, setOpen] = useState(false);
   const [isLoading, setIsLoading] = useState(false);
@@ -49,6 +62,14 @@ export function ContactForm({ onAdd }: Props) {
     e.preventDefault();
     setIsLoading(true);
     setError(null);
+
+    // Validate LinkedIn URL before submit
+    const trimmedLinkedinUrl = linkedinUrl.trim();
+    if (trimmedLinkedinUrl && !isValidLinkedInUrl(trimmedLinkedinUrl)) {
+      setError("Please enter a valid LinkedIn URL (e.g., https://linkedin.com/in/username)");
+      setIsLoading(false);
+      return;
+    }
 
     const contact: OutreachInsert = {
       name: name.trim(),

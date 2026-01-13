@@ -7,6 +7,7 @@ import { Badge } from "@/components/ui/badge";
 import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { ExternalLink } from "lucide-react";
+import { isValidHttpUrl } from "@/lib/url-validation";
 
 type Props = {
   contact: Outreach | null;
@@ -31,11 +32,12 @@ export function ContactCard({
   const textareaRef = useRef<HTMLTextAreaElement>(null);
 
   // Auto-focus textarea when contact changes - THIS IS CRITICAL FOR WISPR
+  // Intentionally depend only on contact?.id to avoid re-focusing when other fields change
   useEffect(() => {
     if (contact) {
       textareaRef.current?.focus();
     }
-  }, [contact]);
+  }, [contact?.id]); // eslint-disable-line react-hooks/exhaustive-deps
 
   if (!contact) {
     return (
@@ -68,7 +70,7 @@ export function ContactCard({
           </div>
         </div>
 
-        {contact.linkedin_url && (
+        {contact.linkedin_url && isValidHttpUrl(contact.linkedin_url) && (
           <a
             href={contact.linkedin_url}
             target="_blank"
