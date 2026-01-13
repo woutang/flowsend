@@ -26,6 +26,8 @@ type ParsedRow = {
 };
 
 const VALID_SOURCES: Source[] = ["cold", "event", "inbound", "referral"];
+const MAX_FILE_SIZE_BYTES = 5 * 1024 * 1024; // 5MB
+const MAX_ROW_COUNT = 500;
 
 function parseCSV(text: string): ParsedRow[] {
   const lines = text.trim().split("\n");
@@ -40,20 +42,35 @@ function parseCSV(text: string): ParsedRow[] {
     const line = lines[i];
     if (!line.trim()) continue;
 
-    // Handle quoted CSV fields
+    // Handle quoted CSV fields with RFC 4180 escaped quotes ("")
     const values: string[] = [];
     let current = "";
     let inQuotes = false;
+    let j = 0;
 
-    for (const char of line) {
+    while (j < line.length) {
+      const char = line[j];
+      const nextChar = line[j + 1];
+
       if (char === '"') {
-        inQuotes = !inQuotes;
+        if (!inQuotes) {
+          // Starting a quoted field
+          inQuotes = true;
+        } else if (nextChar === '"') {
+          // RFC 4180: "" inside quotes means escaped quote
+          current += '"';
+          j++; // Skip the next quote
+        } else {
+          // Ending a quoted field
+          inQuotes = false;
+        }
       } else if (char === "," && !inQuotes) {
         values.push(current.trim());
         current = "";
       } else {
         current += char;
       }
+      j++;
     }
     values.push(current.trim());
 
@@ -110,16 +127,34 @@ export function CSVImport({ onImport }: Props) {
     const file = e.target.files?.[0];
     if (!file) return;
 
+    // Check file size limit
+    if (file.size > MAX_FILE_SIZE_BYTES) {
+      setError(`File too large. Maximum size is 5MB (yours is ${(file.size / 1024 / 1024).toFixed(1)}MB).`);
+      return;
+    }
+
     setError(null);
     const reader = new FileReader();
 
     reader.onload = (event) => {
       try {
-        const text = event.target?.result as string;
-        const rows = parseCSV(text);
+        const result = event.target?.result;
+        // Validate that result is a string
+        if (typeof result !== "string") {
+          setError("Failed to read file as text.");
+          return;
+        }
+
+        const rows = parseCSV(result);
 
         if (rows.length === 0) {
           setError("No valid contacts found in CSV. Make sure you have a 'name' column.");
+          return;
+        }
+
+        // Check row count limit
+        if (rows.length > MAX_ROW_COUNT) {
+          setError(`Too many contacts. Maximum is ${MAX_ROW_COUNT} per import (found ${rows.length}).`);
           return;
         }
 

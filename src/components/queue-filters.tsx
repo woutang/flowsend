@@ -16,6 +16,9 @@ type Props = {
   }) => void;
 };
 
+const SOURCE_VALUES: SourceFilter[] = ["all", "cold", "event", "inbound", "referral"];
+const STATUS_VALUES: StatusFilter[] = ["all", "pending", "sent", "skipped"];
+
 const SOURCES: { value: SourceFilter; label: string }[] = [
   { value: "all", label: "All Sources" },
   { value: "cold", label: "Cold" },
@@ -30,6 +33,14 @@ const STATUSES: { value: StatusFilter; label: string }[] = [
   { value: "sent", label: "Sent" },
   { value: "skipped", label: "Skipped" },
 ];
+
+function isValidSourceFilter(value: string): value is SourceFilter {
+  return SOURCE_VALUES.includes(value as SourceFilter);
+}
+
+function isValidStatusFilter(value: string): value is StatusFilter {
+  return STATUS_VALUES.includes(value as StatusFilter);
+}
 
 export function QueueFilters({ onFilterChange }: Props) {
   const [source, setSource] = useState<SourceFilter>("all");
@@ -72,7 +83,13 @@ export function QueueFilters({ onFilterChange }: Props) {
       <div className="flex gap-2">
         <select
           value={source}
-          onChange={(e) => setSource(e.target.value as SourceFilter)}
+          onChange={(e) => {
+            const value = e.target.value;
+            if (isValidSourceFilter(value)) {
+              setSource(value);
+            }
+          }}
+          aria-label="Filter by source"
           className="h-9 rounded-md border border-input bg-background px-3 text-sm flex-1"
         >
           {SOURCES.map((s) => (
@@ -84,7 +101,13 @@ export function QueueFilters({ onFilterChange }: Props) {
 
         <select
           value={status}
-          onChange={(e) => setStatus(e.target.value as StatusFilter)}
+          onChange={(e) => {
+            const value = e.target.value;
+            if (isValidStatusFilter(value)) {
+              setStatus(value);
+            }
+          }}
+          aria-label="Filter by status"
           className="h-9 rounded-md border border-input bg-background px-3 text-sm flex-1"
         >
           {STATUSES.map((s) => (

@@ -15,13 +15,19 @@ export default async function HistoryPage() {
     redirect("/login");
   }
 
-  // Fetch sent contacts
-  const { data: sentContacts } = await supabase
+  // Fetch sent contacts with explicit user_id filter (defensive, in addition to RLS)
+  const { data: sentContacts, error: fetchError } = await supabase
     .from("outreach")
     .select("*")
+    .eq("user_id", user.id)
     .eq("status", "sent")
     .order("sent_at", { ascending: false })
     .returns<Outreach[]>();
+
+  // Handle query error
+  if (fetchError) {
+    console.error("Failed to fetch sent contacts:", fetchError.message);
+  }
 
   async function signOut() {
     "use server";
@@ -67,11 +73,17 @@ export default async function HistoryPage() {
           <div className="flex items-center justify-between">
             <h2 className="text-2xl font-semibold">Sent Messages</h2>
             <p className="text-muted-foreground">
-              {sentContacts?.length ?? 0} messages sent
+              {fetchError ? "Error loading messages" : `${sentContacts?.length ?? 0} messages sent`}
             </p>
           </div>
 
-          <HistoryTable contacts={sentContacts ?? []} />
+          {fetchError ? (
+            <div className="p-4 text-sm text-red-600 bg-red-50 rounded-md">
+              Failed to load sent messages. Please try refreshing the page.
+            </div>
+          ) : (
+            <HistoryTable contacts={sentContacts ?? []} />
+          )}
         </div>
       </main>
     </div>

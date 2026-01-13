@@ -122,15 +122,20 @@ export function useOutreach() {
         if (error) throw error;
         if (!data) throw new Error("No data returned from insert");
 
-        setContacts((prev) => [...prev, ...data]);
+        setContacts((prev) => {
+          const wasEmpty = prev.length === 0;
+          const newContacts = [...prev, ...data];
 
-        // If this is the first batch and no current contact, set to first pending
-        if (contactsRef.current.length === 0 && data.length > 0) {
-          const firstPendingIndex = data.findIndex((c) => c.status === "pending");
-          if (firstPendingIndex >= 0) {
-            setCurrentIndex(firstPendingIndex);
+          // If this is the first batch and no current contact, set to first pending
+          if (wasEmpty && data.length > 0) {
+            const firstPendingIndex = data.findIndex((c) => c.status === "pending");
+            if (firstPendingIndex >= 0) {
+              setCurrentIndex(firstPendingIndex);
+            }
           }
-        }
+
+          return newContacts;
+        });
 
         return { error: null, count: data.length };
       } catch (err) {
@@ -145,6 +150,12 @@ export function useOutreach() {
   const updateContact = useCallback(
     async (id: string, updates: OutreachUpdate) => {
       try {
+        // Verify contact exists in local state before updating (ownership check)
+        const existingContact = contactsRef.current.find((c) => c.id === id);
+        if (!existingContact) {
+          throw new Error("Contact not found or not owned by current user");
+        }
+
         const { data, error } = await supabase
           .from("outreach")
           .update(updates)

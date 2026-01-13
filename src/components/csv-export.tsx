@@ -3,7 +3,7 @@
 import { useState } from "react";
 import type { Outreach } from "@/types/database";
 import { Button } from "@/components/ui/button";
-import { Download } from "lucide-react";
+import { Download, AlertCircle } from "lucide-react";
 
 type Props = {
   contacts: Outreach[];
@@ -70,6 +70,7 @@ function downloadCSV(content: string, filename: string) {
 
 export function CSVExport({ contacts }: Props) {
   const [isExporting, setIsExporting] = useState(false);
+  const [error, setError] = useState<string | null>(null);
 
   const sentContacts = contacts.filter((c) => c.status === "sent");
 
@@ -77,25 +78,38 @@ export function CSVExport({ contacts }: Props) {
     if (sentContacts.length === 0) return;
 
     setIsExporting(true);
+    setError(null);
 
     try {
       const csv = generateCSV(sentContacts);
       const date = new Date().toISOString().split("T")[0];
       downloadCSV(csv, `flowsend-export-${date}.csv`);
+    } catch (err) {
+      const message = err instanceof Error ? err.message : "Failed to export CSV";
+      setError(message);
+      console.error("CSV export error:", err);
     } finally {
       setIsExporting(false);
     }
   };
 
   return (
-    <Button
-      variant="outline"
-      onClick={handleExport}
-      disabled={isExporting || sentContacts.length === 0}
-      title={sentContacts.length === 0 ? "No sent contacts to export" : `Export ${sentContacts.length} sent contacts`}
-    >
-      <Download className="h-4 w-4 mr-2" />
-      {isExporting ? "Exporting..." : "Export CSV"}
-    </Button>
+    <div className="flex items-center gap-2">
+      <Button
+        variant="outline"
+        onClick={handleExport}
+        disabled={isExporting || sentContacts.length === 0}
+        title={sentContacts.length === 0 ? "No sent contacts to export" : `Export ${sentContacts.length} sent contacts`}
+      >
+        <Download className="h-4 w-4 mr-2" />
+        {isExporting ? "Exporting..." : "Export CSV"}
+      </Button>
+      {error && (
+        <span className="text-sm text-red-600 flex items-center gap-1">
+          <AlertCircle className="h-4 w-4" />
+          {error}
+        </span>
+      )}
+    </div>
   );
 }
