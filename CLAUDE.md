@@ -9,15 +9,15 @@ Voice-first outreach queue for Max. Wispr Flow handles voice→text, we handle t
 - **Styling**: TailwindCSS + Shadcn/UI
 - **Database**: Supabase (PostgreSQL + Auth)
 - **Hosting**: Vercel
-- **Package Manager**: bun (NOT npm)
+- **Package Manager**: npm
 
 ## Commands
 ```bash
-bun run dev        # Dev server on :3000
-bun run build      # Production build
-bun run lint       # ESLint
-bun run typecheck  # TypeScript check
-bun run test       # Run tests
+npm run dev        # Dev server on :3000
+npm run build      # Production build
+npm run lint       # ESLint
+npm run typecheck  # TypeScript check
+npm run test       # Run tests
 ```
 
 ## Database
@@ -69,7 +69,6 @@ useEffect(() => {
 ```
 
 ## Don't Do
-- ❌ npm (use bun)
 - ❌ Custom voice recording (Wispr does this)
 - ❌ LinkedIn automation (manual only)
 - ❌ HubSpot API calls (CSV export only)

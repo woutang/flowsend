@@ -101,6 +101,46 @@ export function useOutreach() {
     [supabase]
   );
 
+  // Import multiple contacts from CSV
+  const importContacts = useCallback(
+    async (contacts: OutreachInsert[]) => {
+      try {
+        const { data: { user } } = await supabase.auth.getUser();
+        if (!user) throw new Error("Not authenticated");
+
+        const contactsWithUserId = contacts.map((c) => ({
+          ...c,
+          user_id: user.id,
+        }));
+
+        const { data, error } = await supabase
+          .from("outreach")
+          .insert(contactsWithUserId)
+          .select()
+          .returns<Outreach[]>();
+
+        if (error) throw error;
+        if (!data) throw new Error("No data returned from insert");
+
+        setContacts((prev) => [...prev, ...data]);
+
+        // If this is the first batch and no current contact, set to first pending
+        if (contactsRef.current.length === 0 && data.length > 0) {
+          const firstPendingIndex = data.findIndex((c) => c.status === "pending");
+          if (firstPendingIndex >= 0) {
+            setCurrentIndex(firstPendingIndex);
+          }
+        }
+
+        return { error: null, count: data.length };
+      } catch (err) {
+        const message = err instanceof Error ? err.message : "Failed to import contacts";
+        return { error: message, count: 0 };
+      }
+    },
+    [supabase]
+  );
+
   // Update a contact
   const updateContact = useCallback(
     async (id: string, updates: OutreachUpdate) => {
@@ -206,6 +246,7 @@ export function useOutreach() {
     error,
     fetchContacts,
     addContact,
+    importContacts,
     updateContact,
     markSent,
     skipContact,

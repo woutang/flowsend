@@ -8,15 +8,14 @@ type Props = {
   contacts: Outreach[];
   currentContactId: string | null;
   onSelectContact: (id: string) => void;
+  showStatusBadge?: boolean;
 };
 
-export function QueueList({ contacts, currentContactId, onSelectContact }: Props) {
-  const pendingContacts = contacts.filter((c) => c.status === "pending");
-
-  if (pendingContacts.length === 0) {
+export function QueueList({ contacts, currentContactId, onSelectContact, showStatusBadge = false }: Props) {
+  if (contacts.length === 0) {
     return (
       <div className="text-sm text-muted-foreground text-center py-4">
-        No pending contacts
+        No contacts match filters
       </div>
     );
   }
@@ -24,9 +23,9 @@ export function QueueList({ contacts, currentContactId, onSelectContact }: Props
   return (
     <div className="space-y-1">
       <div className="text-sm font-medium text-muted-foreground mb-2">
-        Up Next ({pendingContacts.length})
+        Showing {contacts.length} contact{contacts.length !== 1 ? "s" : ""}
       </div>
-      {pendingContacts.map((contact) => (
+      {contacts.map((contact) => (
         <button
           key={contact.id}
           onClick={() => onSelectContact(contact.id)}
@@ -45,11 +44,21 @@ export function QueueList({ contacts, currentContactId, onSelectContact }: Props
                 </div>
               )}
             </div>
-            {contact.source && (
-              <Badge variant="outline" className="text-xs shrink-0">
-                {contact.source}
-              </Badge>
-            )}
+            <div className="flex items-center gap-1 shrink-0">
+              {showStatusBadge && (
+                <Badge
+                  variant={contact.status === "pending" ? "secondary" : "outline"}
+                  className="text-xs"
+                >
+                  {contact.status}
+                </Badge>
+              )}
+              {contact.source && (
+                <Badge variant="outline" className="text-xs">
+                  {contact.source}
+                </Badge>
+              )}
+            </div>
           </div>
         </button>
       ))}

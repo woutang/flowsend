@@ -1,10 +1,11 @@
 import { createClient } from "@/lib/supabase/server";
 import { redirect } from "next/navigation";
 import { Button } from "@/components/ui/button";
-import { OutreachQueue } from "@/components/outreach-queue";
+import { HistoryTable } from "@/components/history-table";
 import Link from "next/link";
+import type { Outreach } from "@/types/database";
 
-export default async function Home() {
+export default async function HistoryPage() {
   const supabase = await createClient();
   const {
     data: { user },
@@ -13,6 +14,14 @@ export default async function Home() {
   if (!user) {
     redirect("/login");
   }
+
+  // Fetch sent contacts
+  const { data: sentContacts } = await supabase
+    .from("outreach")
+    .select("*")
+    .eq("status", "sent")
+    .order("sent_at", { ascending: false })
+    .returns<Outreach[]>();
 
   async function signOut() {
     "use server";
@@ -30,13 +39,13 @@ export default async function Home() {
             <nav className="flex items-center gap-4">
               <Link
                 href="/"
-                className="text-sm font-medium"
+                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
               >
                 Queue
               </Link>
               <Link
                 href="/history"
-                className="text-sm text-muted-foreground hover:text-foreground transition-colors"
+                className="text-sm font-medium"
               >
                 History
               </Link>
@@ -54,7 +63,16 @@ export default async function Home() {
       </header>
 
       <main className="container mx-auto px-4 py-8">
-        <OutreachQueue />
+        <div className="space-y-6">
+          <div className="flex items-center justify-between">
+            <h2 className="text-2xl font-semibold">Sent Messages</h2>
+            <p className="text-muted-foreground">
+              {sentContacts?.length ?? 0} messages sent
+            </p>
+          </div>
+
+          <HistoryTable contacts={sentContacts ?? []} />
+        </div>
       </main>
     </div>
   );

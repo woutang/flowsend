@@ -1,6 +1,6 @@
 "use client";
 
-import { useEffect, useRef } from "react";
+import { useEffect, useRef, useState } from "react";
 import type { Outreach, Channel } from "@/types/database";
 import { Card, CardContent, CardHeader } from "@/components/ui/card";
 import { Badge } from "@/components/ui/badge";
@@ -8,6 +8,9 @@ import { Textarea } from "@/components/ui/textarea";
 import { Button } from "@/components/ui/button";
 import { ExternalLink } from "lucide-react";
 import { isValidHttpUrl } from "@/lib/url-validation";
+import { cn } from "@/lib/utils";
+import { EditContactForm } from "@/components/edit-contact-form";
+import type { OutreachUpdate } from "@/types/database";
 
 type Props = {
   contact: Outreach | null;
@@ -15,12 +18,22 @@ type Props = {
   onMessageChange: (message: string) => void;
   channel: Channel;
   onChannelChange: (channel: Channel) => void;
+  onUpdate?: (id: string, updates: OutreachUpdate) => Promise<{ error: string | null }>;
 };
+
+type LinkedInMessageType = "connection" | "message";
 
 const CHAR_LIMITS = {
   linkedin: { connection: 300, message: 8000 },
   email: { message: 10000 },
 };
+
+function getCharCountColor(count: number, limit: number): string {
+  const percentage = count / limit;
+  if (percentage >= 1) return "text-red-500 font-medium";
+  if (percentage >= 0.9) return "text-yellow-500 font-medium";
+  return "text-muted-foreground";
+}
 
 export function ContactCard({
   contact,
@@ -28,8 +41,10 @@ export function ContactCard({
   onMessageChange,
   channel,
   onChannelChange,
+  onUpdate,
 }: Props) {
   const textareaRef = useRef<HTMLTextAreaElement>(null);
+  const [linkedInType, setLinkedInType] = useState<LinkedInMessageType>("connection");
 
   // Auto-focus textarea when contact changes - THIS IS CRITICAL FOR WISPR
   // Intentionally depend only on contact?.id to avoid re-focusing when other fields change
@@ -49,18 +64,19 @@ export function ContactCard({
     );
   }
 
-  const charLimit = channel === "linkedin" ? CHAR_LIMITS.linkedin.connection : CHAR_LIMITS.email.message;
+  const charLimit = channel === "linkedin"
+    ? CHAR_LIMITS.linkedin[linkedInType]
+    : CHAR_LIMITS.email.message;
   const charCount = message.length;
-  const isOverLimit = charCount > charLimit;
 
   return (
     <Card className="flex-1">
       <CardHeader className="pb-4">
         <div className="flex items-start justify-between">
-          <div>
+          <div className="flex items-center gap-2">
             <h2 className="text-xl font-semibold">{contact.name}</h2>
-            {contact.company && (
-              <p className="text-muted-foreground">{contact.company}</p>
+            {onUpdate && (
+              <EditContactForm contact={contact} onUpdate={onUpdate} />
             )}
           </div>
           <div className="flex items-center gap-2">
@@ -69,6 +85,9 @@ export function ContactCard({
             )}
           </div>
         </div>
+        {contact.company && (
+          <p className="text-muted-foreground">{contact.company}</p>
+        )}
 
         {contact.linkedin_url && isValidHttpUrl(contact.linkedin_url) && (
           <a
@@ -118,11 +137,39 @@ export function ContactCard({
           className="min-h-[150px] resize-none"
         />
 
-        <div className="flex justify-between text-sm">
-          <span className="text-muted-foreground">
-            {channel === "linkedin" ? "Connection request limit: 300 chars" : ""}
-          </span>
-          <span className={isOverLimit ? "text-red-500 font-medium" : "text-muted-foreground"}>
+        <div className="flex justify-between items-center text-sm">
+          {channel === "linkedin" ? (
+            <div className="flex items-center gap-2">
+              <span className="text-muted-foreground">Type:</span>
+              <button
+                type="button"
+                onClick={() => setLinkedInType("connection")}
+                className={cn(
+                  "px-2 py-0.5 rounded text-xs transition-colors",
+                  linkedInType === "connection"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted hover:bg-muted/80"
+                )}
+              >
+                Connection (300)
+              </button>
+              <button
+                type="button"
+                onClick={() => setLinkedInType("message")}
+                className={cn(
+                  "px-2 py-0.5 rounded text-xs transition-colors",
+                  linkedInType === "message"
+                    ? "bg-primary text-primary-foreground"
+                    : "bg-muted hover:bg-muted/80"
+                )}
+              >
+                Message (8000)
+              </button>
+            </div>
+          ) : (
+            <span className="text-muted-foreground">Email limit: 10,000 chars</span>
+          )}
+          <span className={getCharCountColor(charCount, charLimit)}>
             {charCount}/{charLimit}
           </span>
         </div>
