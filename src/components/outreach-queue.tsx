@@ -27,11 +27,53 @@ function MessageEditor({
 }) {
   const [message, setMessage] = useState(contact.message ?? "");
   const [channel, setChannel] = useState<Channel>(contact.channel);
+  const [isSubmitting, setIsSubmitting] = useState(false);
+  const messageRef = useRef(message);
+
+  // Keep ref in sync for keyboard handler
+  useEffect(() => {
+    messageRef.current = message;
+  }, [message]);
 
   const handleMarkSent = useCallback(async () => {
-    await onMarkSent(message);
-    setMessage("");
-  }, [onMarkSent, message]);
+    if (isSubmitting) return;
+    setIsSubmitting(true);
+    try {
+      await onMarkSent(messageRef.current);
+      setMessage("");
+    } finally {
+      setIsSubmitting(false);
+    }
+  }, [onMarkSent, isSubmitting]);
+
+  const handleCopy = useCallback(async () => {
+    const msg = messageRef.current;
+    if (!msg.trim()) return;
+    try {
+      await navigator.clipboard.writeText(msg);
+    } catch (err) {
+      console.error("Failed to copy:", err);
+    }
+  }, []);
+
+  // Keyboard shortcuts: Cmd+Enter (Mark Sent), Cmd+Shift+C (Copy)
+  useEffect(() => {
+    const handleKeyDown = async (e: KeyboardEvent) => {
+      // Cmd/Ctrl + Enter to mark sent
+      if ((e.metaKey || e.ctrlKey) && e.key === "Enter") {
+        e.preventDefault();
+        await handleMarkSent();
+      }
+      // Cmd/Ctrl + Shift + C to copy
+      if ((e.metaKey || e.ctrlKey) && e.shiftKey && e.key.toLowerCase() === "c") {
+        e.preventDefault();
+        await handleCopy();
+      }
+    };
+
+    window.addEventListener("keydown", handleKeyDown);
+    return () => window.removeEventListener("keydown", handleKeyDown);
+  }, [handleMarkSent, handleCopy]);
 
   return (
     <div className="space-y-4">
@@ -48,6 +90,7 @@ function MessageEditor({
         message={message}
         onMarkSent={handleMarkSent}
         onSkip={onSkip}
+        isLoading={isSubmitting}
       />
     </div>
   );
