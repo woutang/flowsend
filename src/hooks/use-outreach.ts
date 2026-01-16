@@ -175,6 +175,26 @@ export function useOutreach() {
     [supabase]
   );
 
+  // Log outreach to HubSpot (fire-and-forget, don't block UI)
+  const logToHubSpot = useCallback(
+    async (outreachId: string, message: string, channel: string) => {
+      try {
+        const response = await fetch("/api/hubspot/log-outreach", {
+          method: "POST",
+          headers: { "Content-Type": "application/json" },
+          body: JSON.stringify({ outreachId, message, channel }),
+        });
+
+        if (!response.ok) {
+          console.error("Failed to log outreach to HubSpot");
+        }
+      } catch (err) {
+        console.error("Error logging to HubSpot:", err);
+      }
+    },
+    []
+  );
+
   // Mark contact as sent and move to next
   const markSent = useCallback(
     async (message: string) => {
@@ -187,12 +207,17 @@ export function useOutreach() {
       });
 
       if (!error) {
+        // Fire-and-forget HubSpot sync (don't block UI)
+        // Only attempt if contact has a hubspot_contact_id
+        if (currentContact.hubspot_contact_id) {
+          logToHubSpot(currentContact.id, message, currentContact.channel);
+        }
         moveToNext();
       }
 
       return { error };
     },
-    [currentContact, updateContact, moveToNext]
+    [currentContact, updateContact, moveToNext, logToHubSpot]
   );
 
   // Skip current contact and move to next
